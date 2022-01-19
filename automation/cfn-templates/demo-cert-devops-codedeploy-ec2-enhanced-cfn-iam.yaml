@@ -1,0 +1,219 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Create a service role for CodeDeploy.
+  Create an IAM instance profile for Amazon EC2 instances.
+
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters: {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-sample-github"
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern:
+      (?!^(\d{1,3}\.){3}\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$(?<!\-))
+
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #         IAM SERVICE POLICIES
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Service Role Definition
+  # Required for CodeDeploy
+  PolicyServiceRoleCodeDeploy:
+    # .............................
+    Type: "AWS::IAM::Role"
+    Properties:
+      # .............................
+      Path: "/"
+      RoleName: !Sub "${ProjectName}-service-role"
+      Description: "AWS CodeDeploy service role for EC2 and Auto Scaling with Launch Templates."
+      # ---
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+      # ---
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"codedeploy.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      # ---
+      Tags: 
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+
+  # ------------------------------------------
+  # --- Inline Policy Definition
+  # Required for Auto Scaling group with a launch template
+  PolicyIamPassRole4ASG:
+    # .............................
+    Type: "AWS::IAM::Policy"
+    Properties:
+      # .............................
+      PolicyName: !Sub "${ProjectName}-inline-passrole-asg"
+      # ---
+      Roles: 
+        - !Ref PolicyServiceRoleCodeDeploy
+      # ---
+      PolicyDocument:
+        # .............................
+        Version: "2012-10-17"
+        Id: "IamPassRoleAllPolicy"
+        Statement:
+          -
+            Sid: "IamPassRoleAll"
+            Effect: "Allow"
+            Resource: "*"
+            Action:
+              - "iam:GetRole"
+              - "iam:PassRole"
+
+  # ------------------------------------------
+  # --- Inline Policy Definition
+  # Required for Auto Scaling group with a launch template
+  PolicyEC2Launch4ASG:
+    # .............................
+    Type: "AWS::IAM::Policy"
+    Properties:
+      # .............................
+      PolicyName: !Sub "${ProjectName}-inline-ec2-launch-asg"
+      # ---
+      Roles: 
+        - !Ref PolicyServiceRoleCodeDeploy
+      # ---
+      PolicyDocument:
+        # .............................
+        Version: "2012-10-17"
+        Id: "EC2LaunchASGPolicy"
+        Statement:
+          -
+            Sid: "EC2LaunchASG"
+            Effect: "Allow"
+            Resource: "*"
+            Action:
+              - "ec2:RunInstances"
+              - "ec2:CreateTags"
+
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #         IAM INSTANCE PROFILE POLICIES
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Instance Role Definition
+  # Required for EC2
+  PolicyInstanceRoleEC2:
+    # .............................
+    Type: "AWS::IAM::Role"
+    Properties:
+      # .............................
+      Path: "/"
+      RoleName: !Sub "${ProjectName}-instance-profile"
+      Description: "Allows EC2 instances to call AWS services on your behalf."
+      # ---
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      # ---
+      Tags: 
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+
+  # ------------------------------------------
+  # --- Instance Profile Definition
+  # Required for EC2
+  PolicyInstanceProfileEC2:
+    # .............................
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      # .............................
+      Path: "/"
+      InstanceProfileName: !Sub "${ProjectName}-instance-profile"
+      Roles:
+        - !Ref PolicyInstanceRoleEC2
+
+  # ------------------------------------------
+  # --- Instance Policy Definition
+  # Required for EC2-S3
+  PolicyInstancePolicyEc2S3:
+    # .............................
+    Type: "AWS::IAM::Policy"
+    Properties:
+      # .............................
+      PolicyName: !Sub "${ProjectName}-inline-ec2-s3"
+      # ---
+      Roles: 
+        - !Ref PolicyInstanceRoleEC2
+      # ---
+      PolicyDocument:
+        # .............................
+        Version: "2012-10-17"
+        Id: "InstancePolicyEC2S3"
+        Statement:
+          -
+            Sid: "EC2S3"
+            Effect: "Allow"
+            Resource: 
+              - "arn:aws:s3:::demo-cert-devops*"
+              - !Sub "arn:aws:s3:::aws-codedeploy-${AWS::Region}*"
+            Action:
+              - "s3:Get*"
+              - "s3:List*"
+
+
+# ==========================================
+# Outputs: {}
+Outputs:
+
+  # ------------------------------------------
+  # --- Public Instance Profile Name
+  PublicEC2InstanceProfile:
+    Description: "Public Instance Profile Name"
+    Value: !Ref PolicyInstanceProfileEC2
+
+  # ------------------------------------------
+  # --- CodeDeploy Service Role Name
+  ServiceRoleCodeDeploy:
+    Description: "CodeDeploy Service Role Name"
+    Value: !Ref PolicyServiceRoleCodeDeploy
+
+  # ------------------------------------------
+  # --- CodeDeploy Service Role ARN
+  ServiceRoleCodeDeployArn:
+    Description: "CodeDeploy Service Role ARN"
+    Value: !GetAtt PolicyServiceRoleCodeDeploy.Arn

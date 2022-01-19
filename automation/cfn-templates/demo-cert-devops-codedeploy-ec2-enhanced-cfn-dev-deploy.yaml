@@ -1,0 +1,119 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Discription Here:
+
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-sample-github"
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern:
+      (?!^(\d{1,3}\.){3}\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$(?<!\-))
+
+  # ------------------------------------------
+  # --- AMI for EC2 instance
+  ServiceRoleCodeDeployArn:
+    Description: "CodeDeploy Service Role ARN"
+    Type: String
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #         PUBLIC EC2 DEFINITION
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  # ------------------------------------------
+  # --- CodeDeploy Application
+  CodeDeployApplication:
+    Type: "AWS::CodeDeploy::Application"
+    # .............................
+    Properties:
+      ApplicationName: !Sub "${ProjectName}-app"
+      #  ECS | Lambda | Server
+      ComputePlatform: "Server"
+      # .............................
+      Tags: 
+      - 
+        Key: "Project"
+        Value: "demo"
+      - 
+        Key: "Function"
+        Value: "cert-devops"
+      - 
+        Key: "Reference"
+        Value: "cfn"
+      - 
+        Key: "Name"
+        Value: !Sub "${ProjectName}"
+
+
+  # ------------------------------------------
+  # --- CodeDeploy Deployment Group
+  CodeDeployDeploymentGroup:
+    Type: "AWS::CodeDeploy::DeploymentGroup"
+    # .............................
+    Properties:
+      # .............................
+      DeploymentGroupName: !Sub "${ProjectName}-deploy-group"
+      ApplicationName: !Ref CodeDeployApplication
+      # .............................
+      DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      ServiceRoleArn: !Ref "ServiceRoleCodeDeployArn"
+      # .............................
+      DeploymentStyle: 
+        DeploymentType: "IN_PLACE"
+        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+      # .............................
+      Deployment:
+        Description: !Sub "${ProjectName} deployment"
+        # .............................
+        Revision:
+          RevisionType: GitHub
+          GitHubLocation:
+            Repository: !Sub "cloudemprise/${ProjectName}"
+            CommitId: "ed0d33204941d0a2e002048821ad94bc1183d840"
+      # .............................
+      Ec2TagFilters:
+        - 
+          Key: "Project"
+          Value: "demo"
+          Type: "KEY_AND_VALUE"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+          Type: "KEY_AND_VALUE"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+          Type: "KEY_AND_VALUE"
+        - 
+          Key: "Name"
+          Value: !Sub "${ProjectName}-public"
+          Type: "KEY_AND_VALUE"
+
+# ==========================================
+Outputs: {}
+# Outputs:

@@ -1,0 +1,130 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  An EC2 Launch Template for facilitating Spot Requests.
+
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-sample-github"
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern:
+      (?!^(\d{1,3}\.){3}\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$(?<!\-))
+
+  # ------------------------------------------
+  # --- Launch Template AMI
+  PublicEC2LaunchTemplateAmiId:
+    Description: "Launch Template AMI ID"
+    Type: "AWS::EC2::Image::Id"
+
+  # ------------------------------------------
+  # --- Public Security Group Resource ID
+  PublicEC2SecurityGrpId:
+    Description: "Public Security Group ID AZ-A"
+    Type: "AWS::EC2::SecurityGroup::Id"
+
+  # ------------------------------------------
+  # --- SSH Key Pair Name
+  PublicEC2SshAccessKeyName:
+    Description: "An Amazon EC2 regional key pair name"
+    Type: AWS::EC2::KeyPair::KeyName
+
+  # ------------------------------------------
+  # --- Public Instance Profile Name
+  PublicEC2InstanceProfile:
+    Description: "Public Instance Profile Name"
+    Type: String
+
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #       LAUNCH TEMPLATE EC2 DEFINITION
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Public EC2 Instance
+  PublicEC2LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    # .............................
+    Properties:
+      # .............................
+      LaunchTemplateName: !Sub "${ProjectName}-ec2-lt"
+      # .............................
+      TagSpecifications:
+        -
+          ResourceType: "launch-template"
+          Tags:
+            -
+              Key: "Name"
+              Value: !Sub "${ProjectName}-ec2-lt"
+            -
+              Key: "Project"
+              Value: "demo"
+            -
+              Key: "Function"
+              Value: "cert-devops"
+            -
+              Key: "Reference"
+              Value: "cfn"
+      # .............................
+      LaunchTemplateData:
+        ImageId: !Ref PublicEC2LaunchTemplateAmiId
+        InstanceType: "t2.micro"
+        # .............................
+        KeyName: !Ref PublicEC2SshAccessKeyName
+        SecurityGroupIds:
+          - !Ref PublicEC2SecurityGrpId
+        # .............................
+        IamInstanceProfile:
+          Name: !Ref "PublicEC2InstanceProfile"
+        # .............................
+        InstanceMarketOptions: 
+          MarketType: "spot"
+          SpotOptions:
+            # one-time | persistent
+            SpotInstanceType: "one-time"
+            #  hibernate | stop | terminate
+            InstanceInterruptionBehavior: "terminate"
+        # .............................
+        MetadataOptions:
+          HttpEndpoint: "enabled"
+          HttpTokens: "required"
+          #HttpTokens: "optional"
+          HttpPutResponseHopLimit: 1
+        # .............................
+        Monitoring:
+          Enabled: false
+
+# ==========================================
+# Outputs: {}
+Outputs:
+
+  # ------------------------------------------
+  # --- Public Launch Template ID
+  PublicEC2LaunchTemplateId:
+    Description: "Launch Template ID"
+    Value: !Ref PublicEC2LaunchTemplate

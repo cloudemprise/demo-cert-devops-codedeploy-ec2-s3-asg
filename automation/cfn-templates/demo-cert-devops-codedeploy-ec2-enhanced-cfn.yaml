@@ -1,0 +1,217 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  This template is the top level stack of a two-level hierarchical nested 
+  infrastructure declaration of cloudformation stacks.
+
+  Orchestration is controlled via a bash shell script included in the git 
+  project repository, i.e. automation/provision-infrastructure-cfn-templates.sh
+
+  Nested template components include:
+
+  Various IAM Role Authorizations.
+  A Virtual Private Cloud.
+  A Public Subnet Security Group definition.
+  A Public EC2 Instance declaration.
+  A EC2 Launch Template.
+  A CodeDeploy Deployment composition.
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-ec2-enhanced"
+    AllowedPattern: (^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$)
+
+  # ------------------------------------------
+  # --- Existing S3 Bucket Name
+  ProjectBucket:
+    Description: "S3 Bucket Location including prefixes."
+    ConstraintDescription: "Must be an existing S3 Bucket."
+    Type: String
+    Default: "demo-cert-devops"
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern:
+      (?!^(\d{1,3}\.){3}\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$(?<!\-))
+
+  # ------------------------------------------
+  # --- S3 Bucket Folder Prefix
+  ProjectPrefix:
+    Description: "S3 Bucket Location including prefixes."
+    ConstraintDescription: "Must be an existing S3 Bucket."
+    Type: String
+    Default: "codedeploy"
+    AllowedPattern: (^[a-z0-9]([a-z0-9/-]*(\.[a-z0-9])?)*$(?<!\-))
+
+  # ------------------------------------------
+  # --- SSH Key Pair Name
+  SshAccessKeyName:
+    Description: "An Amazon EC2 regional key pair name"
+    ConstraintDescription: "Required field. Can contain only ASCII characters."
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "aws.dev.ec2.ssh.key.eu-central-1"
+    AllowedPattern: '[\x20-\x7E]*'
+
+  # ------------------------------------------
+  # --- IP CIDR for SSH Bastion Host
+  SshAccessCIDR:
+    Description: "IP range for SSH access into Public Instance."
+    ConstraintDescription: "Must be a valid IPv4 CIDR."
+    Type: String
+    MinLength: "9"
+    MaxLength: "18"
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
+  # ------------------------------------------
+  # --- Latest Amazon_Linux_2 AMI
+  LatestAmi:
+    Description: "The AMI to use for EC2 instances"
+    Type: "AWS::EC2::Image::Id"
+    # SSM method below but this type of variable is not versatile within scripts
+    # Can not be called from a script without extra unknown authorizations:
+    #Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    #Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #         NESTED STACK DECLARATIONS
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  # ------------------------------------------
+  # --- IAM Definition
+  IAMDef:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-iam.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+      TimeoutInMinutes: 7
+
+  # ------------------------------------------
+  # --- VPC Definition
+  VPCDef:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-vpc.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+      TimeoutInMinutes: 7
+
+  # ------------------------------------------
+  # --- Public/Private Security Groups
+  SecurityGrpDefs:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-vpc-sg.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+        VPCID:
+          !GetAtt VPCDef.Outputs.VPCID
+        SshAccessCIDR:
+          !Ref SshAccessCIDR
+      TimeoutInMinutes: 7
+
+  # ------------------------------------------
+  # --- EC2 Launch Template
+  PublicEC2LaunchTemplateDef:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-lt.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+        PublicEC2LaunchTemplateAmiId:
+          !Ref LatestAmi
+        PublicEC2SecurityGrpId:
+          !GetAtt SecurityGrpDefs.Outputs.PublicEC2SecurityGrpId
+        PublicEC2SshAccessKeyName:
+          !Ref SshAccessKeyName
+        PublicEC2InstanceProfile: 
+          !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
+      TimeoutInMinutes: 7
+
+  # ------------------------------------------
+  # --- Public EC2 Instance
+  PublicEC2InstanceDef:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-pub.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+        PublicEC2InstanceAmiId:
+          !Ref LatestAmi
+        PublicEC2SecurityGrpId:
+          !GetAtt SecurityGrpDefs.Outputs.PublicEC2SecurityGrpId
+        PublicEC2SubnetIdA:
+          !GetAtt VPCDef.Outputs.PublicSubnetIdA
+        PublicEC2SubnetIdB:
+          !GetAtt VPCDef.Outputs.PublicSubnetIdB
+        PublicEC2SshAccessKeyName:
+          !Ref SshAccessKeyName
+        PublicEC2InstanceProfile: 
+          !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
+        PublicEC2LaunchTemplateId:
+          !GetAtt PublicEC2LaunchTemplateDef.Outputs.PublicEC2LaunchTemplateId
+      TimeoutInMinutes: 15
+
+
+  # ------------------------------------------
+  # --- CodeDeploy Deployment
+  #CodeDeployDeploymentDef:
+  #  Type: "AWS::CloudFormation::Stack"
+  #  DependsOn: "PublicEC2InstanceDef"
+  #  # .............................
+  #  Properties:
+  #    TemplateURL:
+  #      !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-dev-deploy.yaml"
+  #    Parameters:
+  #      ProjectName:
+  #        !Ref ProjectName
+  #      ServiceRoleCodeDeployArn:
+  #        !GetAtt IAMDef.Outputs.ServiceRoleCodeDeployArn
+  #    TimeoutInMinutes: 7
+
+
+
+
+
+# ==========================================
+Outputs: {}
+# Outputs:
