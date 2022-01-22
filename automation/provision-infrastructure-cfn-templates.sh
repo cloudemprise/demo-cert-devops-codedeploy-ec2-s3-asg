@@ -184,6 +184,8 @@ echo "The Script Caller userid ......................: $AWS_USERID_CLI"
 SSH_ACCESS_CIDR="$(curl -s https://checkip.amazonaws.com/)/32"
 echo "The Script Caller IP CIDR  ....................: $SSH_ACCESS_CIDR"
 # Grab the latest AMI
+# To get a complete list of all available Public Parameter Amazon Linux AMIs:
+# aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest"
 AMI_NAME="/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 AMI_LATEST=$(aws ssm get-parameters --output text --names "$AMI_NAME" --profile "$AWS_PROFILE" \
   --query 'Parameters[0].[Value]' --region "$AWS_REGION")

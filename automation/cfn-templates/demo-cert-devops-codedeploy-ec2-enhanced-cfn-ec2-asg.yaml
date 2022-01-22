@@ -1,0 +1,325 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  An EC2 Auto Scaling Group with static scaling policy. Requires a Launch 
+  Template, a Target Group and a SNS notification topic. Two metrics are 
+  collected, i.e. GroupInServiceInstances and GroupTotalInstances. Notifies 
+  on all state changes.
+
+  An EC2 Launch Template for facilitating Spot Requests.
+
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-ec2-enhanced"
+    AllowedPattern: (^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$)
+
+  # ------------------------------------------
+  # --- Public EC2 Target Group ARN
+  PublicEC2TargetGroupArn:
+    Description: "Loadbalancer Target Group ARN"
+    Type: String
+
+  # ------------------------------------------
+  # ---Public Subnet AZ-A
+  PublicEC2SubnetIdA:
+    Description: "Public Subnet ID AZ-A"
+    Type: AWS::EC2::Subnet::Id
+
+  # ------------------------------------------
+  # ---Public Subnet AZ-B
+  PublicEC2SubnetIdB:
+    Description: "Public Subnet ID AZ-B"
+    Type: AWS::EC2::Subnet::Id
+
+  # ------------------------------------------
+  # --- Public Security Group Resource ID
+  PublicEC2SecurityGroupId:
+    Description: "Public Security Group ID AZ-A"
+    Type: "AWS::EC2::SecurityGroup::Id"
+
+  # ------------------------------------------
+  # --- Launch Template AMI
+  PublicEC2LaunchTemplateAmiId:
+    Description: "Launch Template AMI ID"
+    Type: "AWS::EC2::Image::Id"
+
+  # ------------------------------------------
+  # --- SSH Key Pair Name
+  PublicEC2SshAccessKeyName:
+    Description: "An Amazon EC2 regional key pair name"
+    Type: AWS::EC2::KeyPair::KeyName
+
+  # ------------------------------------------
+  # --- Public Instance Profile Name
+  PublicEC2InstanceProfile:
+    Description: "Public Instance Profile Name"
+    Type: String
+
+  # ------------------------------------------
+  # --- Auto Scale Group Desired Capacity
+  PublicEC2AutoScaleGroupDesiredCapacity:
+    Description: "Public Instance Profile Name"
+    Type: String
+    Default: "2"
+
+
+# ------------------------------------------
+#  PublicEC2SNSTopicARN:
+#    Description: "Openvpn SNS Activity Topic ARN"
+#    Type: String
+
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #       LAUNCH TEMPLATE EC2 DEFINITION
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Public EC2 Instance
+  PublicEC2LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    # .............................
+    Properties:
+      # .............................
+      LaunchTemplateName: !Sub "${ProjectName}-ec2-lt"
+      # .............................
+      TagSpecifications:
+        -
+          ResourceType: "launch-template"
+          Tags:
+            -
+              Key: "Name"
+              Value: !Sub "${ProjectName}-ec2-lt"
+            -
+              Key: "Project"
+              Value: "demo"
+            -
+              Key: "Function"
+              Value: "cert-devops"
+            -
+              Key: "Reference"
+              Value: "cfn"
+      # .............................
+      LaunchTemplateData:
+        ImageId: !Ref PublicEC2LaunchTemplateAmiId
+        #InstanceType: "t2.micro"
+        InstanceType: "t3.nano"
+        # .............................
+        KeyName: !Ref PublicEC2SshAccessKeyName
+        SecurityGroupIds:
+          - !Ref PublicEC2SecurityGroupId
+        # .............................
+        IamInstanceProfile:
+          Name: !Ref "PublicEC2InstanceProfile"
+        # .............................
+        InstanceMarketOptions: 
+          MarketType: "spot"
+          SpotOptions:
+            # one-time | persistent
+            SpotInstanceType: "one-time"
+            #  hibernate | stop | terminate
+            InstanceInterruptionBehavior: "terminate"
+        # .............................
+        MetadataOptions:
+          HttpEndpoint: "enabled"
+          HttpTokens: "required"
+          #HttpTokens: "optional"
+          HttpPutResponseHopLimit: 1
+        # .............................
+        Monitoring:
+          Enabled: false
+        # .............................
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash -e
+              # debug : -e break on all errors
+              # debug options include -v -x
+              # ---
+              # Update Packages, inc. aws-cfn-bootstrap:
+              yum update -y
+              # ---
+              # Retrive IMDSv2 token - valid 15mins
+              #export TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900")
+              # Start cfn-init
+              /opt/aws/bin/cfn-init -v --configsets Step1 --stack ${AWS::StackId} --resource PublicEC2LaunchTemplate --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
+              # All done so signal success
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource PublicEC2AutoScaleGroup --region ${AWS::Region}
+    # .............................
+    Metadata:
+      Comment: "Configuring an EC2 Instance."
+      # .............................
+      AWS::CloudFormation::Init:
+        configSets:
+          Step1:
+            - configRepo
+            - configYum
+            - configWebServer
+        # / / / / / / / / / / / / / / /
+        configRepo:
+          commands:
+            1a_epel:
+              command: "amazon-linux-extras install epel"
+            1b_epel:
+              command: 'sed -i "/\[epel\]/a priority=20" /etc/yum.repos.d/epel.repo'
+            2a_repo:
+              command: "yum-config-manager --disable amzn2extra-docker"
+            3a_repo:
+              command: "yum update -y"
+        # / / / / / / / / / / / / / / /
+        configYum:
+          packages:
+            yum:
+              yum-cron: []
+          commands:
+            1a_yumCron:
+              command: "sed -i 's/.*update_cmd.*/update_cmd = security/' /etc/yum/yum-cron.conf"
+            1b_yumCron:
+              command: "sed -i 's/.*apply_updates.*/apply_updates = yes/' /etc/yum/yum-cron.conf"
+          services:
+            sysvinit:
+              yum-cron:
+                ensureRunning: "true"
+                enabled: "true"
+                commands:
+                  - "1b_yumCron"
+        # / / / / / / / / / / / / / / /
+        # For use: LoadBalancer HealthChecks.
+        configWebServer:
+          packages:
+            yum:
+              httpd: []
+          files:
+            "/var/www/html/index.html":
+              content: !Sub |
+                <h1>Hello from ${AWS::StackId}<h1>
+              mode: '000644'
+              owner: "root"
+              group: "root"
+          services:
+            sysvinit:
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+        # / / / / / / / / / / / / / / /
+
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #       AUTO SCALE GROUP DEFINITION
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Auto Scale Group
+  PublicEC2AutoScaleGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    # .............................
+    CreationPolicy:
+      ResourceSignal:
+        Count: !Ref PublicEC2AutoScaleGroupDesiredCapacity
+        Timeout: "PT10M"
+    # .............................
+    Properties:
+      # .............................
+      AutoScalingGroupName: !Sub "${ProjectName}-asg"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref PublicEC2LaunchTemplate
+        Version: "1"
+      # .............................
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "${ProjectName}-asg"
+          PropagateAtLaunch: true
+        - 
+          Key: "Project"
+          Value: "demo"
+          PropagateAtLaunch: true
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+          PropagateAtLaunch: true
+        - 
+          Key: "Reference"
+          Value: "cfn"
+          PropagateAtLaunch: true
+      # .............................
+      VPCZoneIdentifier:
+        - !Ref PublicEC2SubnetIdA
+        - !Ref PublicEC2SubnetIdB
+      # .............................
+      Cooldown: "300"
+      DesiredCapacity: !Ref PublicEC2AutoScaleGroupDesiredCapacity
+      MinSize: "1"
+      MaxSize: "3"
+      # .............................
+      HealthCheckType: "ELB"
+      HealthCheckGracePeriod: 300
+      # .............................
+      TargetGroupARNs:
+        - !Ref PublicEC2TargetGroupArn
+      # .............................
+      MetricsCollection:
+        - Granularity: "1Minute"
+          Metrics:
+            - "GroupInServiceInstances"
+            - "GroupMinSize"
+            - "WarmPoolDesiredCapacity"
+            - "GroupTerminatingInstances"
+            - "WarmPoolTerminatingCapacity"
+            - "GroupDesiredCapacity"
+            - "WarmPoolPendingCapacity"
+            - "GroupAndWarmPoolDesiredCapacity"
+            - "GroupPendingCapacity"
+            - "GroupInServiceCapacity"
+            - "GroupMaxSize"
+            - "GroupStandbyInstances"
+            - "WarmPoolTotalCapacity"
+            - "GroupTotalCapacity"
+            - "GroupTotalInstances"
+            - "WarmPoolMinSize"
+            - "WarmPoolWarmedCapacity"
+            - "GroupPendingInstances"
+            - "GroupStandbyCapacity"
+            - "GroupTerminatingCapacity"
+            - "GroupAndWarmPoolTotalCapacity"
+      # .............................
+      #NotificationConfigurations:
+      #  - NotificationTypes:
+      #      - autoscaling:EC2_INSTANCE_LAUNCH
+      #      - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+      #      - autoscaling:EC2_INSTANCE_TERMINATE
+      #      - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+      #      - autoscaling:TEST_NOTIFICATION
+      #    TopicARN: !Ref PublicEC2SNSTopicARN
+
+
+
+
+# ==========================================
+Outputs: {}
+# Outputs:

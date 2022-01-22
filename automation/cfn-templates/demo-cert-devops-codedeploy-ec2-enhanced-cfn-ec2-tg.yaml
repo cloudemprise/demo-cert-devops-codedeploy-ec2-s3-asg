@@ -1,0 +1,122 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  A Target Group for the Loadbalancer associated with the Auto Scaling Group
+  service. Health Checks come from a webserver running on the same EC2 instance.
+
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-ec2-enhanced"
+    AllowedPattern: (^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$)
+
+  # ------------------------------------------
+  # --- AWS-Specific Parameter VPC Id
+  VPCID:
+    Description: "VPC to associate with load balancer"
+    Type: "AWS::EC2::VPC::Id"
+
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #     NETWORK LOAD BALANCER DEFINITIONS
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Target Group Definition
+  PublicEC2TargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    # .............................
+    Properties:
+      Name: "codedeploy-ec2-enhanced-tg"
+      # .............................
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "${ProjectName}-tg"
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+      # .............................
+      VpcId: !Ref VPCID
+      TargetType: "instance"
+      Port: 80
+      Protocol: "HTTP"
+      # .............................
+      HealthCheckEnabled: true
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: "80"
+      HealthCheckPath: "/"
+      Matcher: 
+        HttpCode: "200"
+      # .............................
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 5
+      # .............................
+      TargetGroupAttributes: 
+      - 
+        Key: "stickiness.enabled"
+        Value: "false"
+      - 
+        Key: "deregistration_delay.timeout_seconds"
+        Value: "300"
+      - 
+        Key: "stickiness.app_cookie.cookie_name"
+        Value: ""
+      - 
+        Key: "stickiness.type"
+        Value: "lb_cookie"
+      - 
+        Key: "stickiness.lb_cookie.duration_seconds"
+        Value: "86400"
+      - 
+        Key: "slow_start.duration_seconds"
+        Value: "0"
+      - 
+        Key: "stickiness.app_cookie.duration_seconds"
+        Value: "86400"
+      - 
+        Key: "load_balancing.algorithm.type"
+        Value: "round_robin"
+
+
+# ==========================================
+# Outputs: {}
+Outputs:
+
+  # ------------------------------------------
+  # --- Public EC2 Target Group ARN
+  PublicEC2TargetGroupArn:
+    Description: "Loadbalancer Target Group ARN"
+    Value: !Ref PublicEC2TargetGroup

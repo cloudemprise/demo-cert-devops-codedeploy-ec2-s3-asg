@@ -67,13 +67,28 @@ Resources:
 
   # ------------------------------------------
   # --- Public Subnet Security Group (Ingress)
-  PublicSecurityGroup:
+  PublicEC2SecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     # .............................
     Properties:
       GroupDescription: "Public Subnet Security Group"
       GroupName: !Sub "${ProjectName}-sg-pub-${AWS::Region}"
       VpcId: !Ref VPCID
+      # .............................
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "pub-${ProjectName}"
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+      # .............................      
       SecurityGroupIngress:
         - Description: "SSH External"
           IpProtocol: "tcp"
@@ -105,24 +120,31 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: "0.0.0.0/0"
-      Tags:
-        - Key: "Name"
-          Value:
-            !Sub "public-${ProjectName}"
+
 
   # ------------------------------------------
   # --- Private Subnet Security Group
-  PrivateSecurityGroup:
+  PrivateEC2SecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     # .............................
     Properties:
       GroupDescription: "Private Subnet Security Group"
       GroupName: !Sub "${ProjectName}-sg-priv-${AWS::Region}"
       VpcId: !Ref VPCID
+      # .............................
       Tags:
-        - Key: "Name"
-          Value:
-            !Sub "private-${ProjectName}"
+        -
+          Key: "Name"
+          Value: !Sub "priv-${ProjectName}"
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
 
   # ------------------------------------------
   # --- Private Subnet Ingress SSH local only
@@ -131,12 +153,12 @@ Resources:
     # .............................
     Properties:
       GroupId:
-        !GetAtt PrivateSecurityGroup.GroupId
+        !GetAtt PrivateEC2SecurityGroup.GroupId
       IpProtocol: "tcp"
       FromPort: 22
       ToPort: 22
       SourceSecurityGroupId:
-        !GetAtt PublicSecurityGroup.GroupId
+        !GetAtt PublicEC2SecurityGroup.GroupId
 
   # ------------------------------------------
   # --- Private Subnet Ingress ICMP local only
@@ -145,12 +167,44 @@ Resources:
     # .............................
     Properties:
       GroupId:
-        !GetAtt PrivateSecurityGroup.GroupId
+        !GetAtt PrivateEC2SecurityGroup.GroupId
       IpProtocol: "icmp"
       FromPort: 8
       ToPort: -1
       SourceSecurityGroupId:
-        !GetAtt PublicSecurityGroup.GroupId
+        !GetAtt PublicEC2SecurityGroup.GroupId
+
+
+  # ------------------------------------------
+  # --- Public ALB Security Group
+  PublicEC2ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    # .............................
+    Properties:
+      GroupDescription: "Application Loadbalancer Security Group"
+      GroupName: !Sub "${ProjectName}-alb"
+      VpcId: !Ref VPCID
+      # .............................
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "alb-${ProjectName}"
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+      # .............................      
+      SecurityGroupIngress:
+        - Description: "http access for application loadbalancer"
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
 
 
 # ==========================================
@@ -159,12 +213,18 @@ Outputs:
 
   # ------------------------------------------
   # --- Public Security Group Id
-  PublicEC2SecurityGrpId:
+  PublicEC2SecurityGroupId:
     Description: "Public SG Resource ID"
-    Value: !Ref PublicSecurityGroup
+    Value: !Ref PublicEC2SecurityGroup
 
   # ------------------------------------------
   # --- Private Security Group Id
-  PrivateEC2SecurityGrpId:
+  PrivateEC2SecurityGroupId:
     Description: "Private SG Resource ID"
-    Value: !Ref PrivateSecurityGroup
+    Value: !Ref PrivateEC2SecurityGroup
+
+  # ------------------------------------------
+  # --- Public ALB Security Group Id
+  PublicEC2ALBSecurityGroupId:
+    Description: "Public ALB Security Group ID"
+    Value: !Ref PublicEC2ALBSecurityGroup

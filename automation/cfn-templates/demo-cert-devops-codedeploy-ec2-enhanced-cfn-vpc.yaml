@@ -71,7 +71,7 @@ Resources:
 
   # ------------------------------------------
   # --- AZ-A Public Subnet
-  PublicSubnetA:
+  PublicEC2SubnetA:
     Type: "AWS::EC2::Subnet"
     # .............................
     Properties:
@@ -86,11 +86,11 @@ Resources:
       Tags:
         - Key: "Name"
           Value:
-            !Sub "${ProjectName}-PubSubnetA"
+            !Sub "pubA-${ProjectName}"
 
   # ------------------------------------------
   # --- AZ-B Public Subnet
-  PublicSubnetB:
+  PublicEC2SubnetB:
     Type: "AWS::EC2::Subnet"
     # .............................
     Properties:
@@ -105,11 +105,11 @@ Resources:
       Tags:
         - Key: "Name"
           Value:
-            !Sub "${ProjectName}-PubSubnetB"
+            !Sub "pubB-${ProjectName}"
 
   # ------------------------------------------
   # --- AZ1 Private Subnet
-  PrivateSubnetA:
+  PrivateEC2SubnetA:
     Type: "AWS::EC2::Subnet"
     # .............................
     Properties:
@@ -124,11 +124,11 @@ Resources:
       Tags:
         - Key: "Name"
           Value:
-            !Sub "${ProjectName}-PrivSubnetA"
+            !Sub "privA-${ProjectName}"
 
   # ------------------------------------------
   # --- AZ-B Private Subnet
-  PrivateSubnetB:
+  PrivateEC2SubnetB:
     Type: "AWS::EC2::Subnet"
     # .............................
     Properties:
@@ -143,7 +143,7 @@ Resources:
       Tags:
         - Key: "Name"
           Value:
-            !Sub "${ProjectName}-PrivSubnetB"
+            !Sub "privB-${ProjectName}"
 
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,7 +168,7 @@ Resources:
     # .............................
     Properties:
       RouteTableId: !Ref RouteTablePublic
-      SubnetId: !Ref PublicSubnetA
+      SubnetId: !Ref PublicEC2SubnetA
 
   # ------------------------------------------
   RouteTablePublicAssociationB:
@@ -176,7 +176,7 @@ Resources:
     # .............................
     Properties:
       RouteTableId: !Ref RouteTablePublic
-      SubnetId: !Ref PublicSubnetB
+      SubnetId: !Ref PublicEC2SubnetB
 
   # ------------------------------------------
   RouteTablePublicRoute0:
@@ -205,7 +205,7 @@ Resources:
     # .............................
     Properties:
       RouteTableId: !Ref RouteTablePrivateA
-      SubnetId: !Ref PrivateSubnetA
+      SubnetId: !Ref PrivateEC2SubnetA
 
   # ------------------------------------------
   # --- Private B Route Table
@@ -224,7 +224,7 @@ Resources:
     # .............................
     Properties:
       RouteTableId: !Ref RouteTablePrivateB
-      SubnetId: !Ref PrivateSubnetB
+      SubnetId: !Ref PrivateEC2SubnetB
 
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -260,24 +260,24 @@ Outputs:
 
   # ------------------------------------------
   # ---Public Subnet AZ-A Export
-  PublicSubnetIdA:
+  PublicEC2SubnetIdA:
     Description: "Public Subnet ID AZ-A"
-    Value: !Ref PublicSubnetA
+    Value: !Ref PublicEC2SubnetA
 
   # ------------------------------------------
   # ---Public Subnet AZ-B Export
-  PublicSubnetIdB:
+  PublicEC2SubnetIdB:
     Description: "Public Subnet ID AZ-B"
-    Value: !Ref PublicSubnetB
+    Value: !Ref PublicEC2SubnetB
 
   # ------------------------------------------
   # ---Private Subnet AZ-A Export
-  PrivateSubnetIdA:
+  PrivateEC2SubnetIdA:
     Description: "Private Subnet ID AZ-A"
-    Value: !Ref PrivateSubnetA
+    Value: !Ref PrivateEC2SubnetA
 
   # ------------------------------------------
   # ---Private Subnet AZ-B Export
-  PrivateSubnetIdB:
+  PrivateEC2SubnetIdB:
     Description: "Private Subnet ID AZ-B"
-    Value: !Ref PrivateSubnetB
+    Value: !Ref PrivateEC2SubnetB

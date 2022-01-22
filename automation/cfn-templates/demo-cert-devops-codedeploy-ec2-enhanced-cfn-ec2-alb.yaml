@@ -1,0 +1,154 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  A Loadbalancer and its associated Listener for demonstration purposes.DNSName
+  Servicing public subnets in multiple availablity zones.
+
+# ------------------------------------------
+
+
+# ==========================================
+Metadata: {}
+# Metadata:
+
+
+# ==========================================
+# Parameters {}
+Parameters:
+
+  # ------------------------------------------
+  # --- The Project Name
+  ProjectName:
+    Description: "Name of this particular project"
+    ConstraintDescription: "Specify name of this project"
+    Type: String
+    Default: "demo-cert-devops-codedeploy-ec2-enhanced"
+    AllowedPattern: (^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$)
+
+  # ------------------------------------------
+  # --- Public Security Group Resource ID
+  PublicEC2ALBSecurityGroupId:
+    Description: "Public ALB Security Group ID"
+    Type: "AWS::EC2::SecurityGroup::Id"
+
+  # ------------------------------------------
+  # ---Public Subnet AZ-A
+  PublicEC2SubnetIdA:
+    Description: "Public Subnet ID AZ-A"
+    Type: AWS::EC2::Subnet::Id
+
+  # ------------------------------------------
+  # ---Public Subnet AZ-B
+  PublicEC2SubnetIdB:
+    Description: "Public Subnet ID AZ-B"
+    Type: AWS::EC2::Subnet::Id
+
+  # ------------------------------------------
+  # --- Public EC2 Target Group ARN
+  PublicEC2TargetGroupArn:
+    Description: "Loadbalancer Target Group ARN"
+    Type: String
+
+
+# ==========================================
+Conditions: {}
+# Conditions:
+
+
+# ==========================================
+Resources:
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #     LOAD BALANCER DEFINITIONS
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+  # ------------------------------------------
+  # --- Load Balancer Definition
+  PublicEC2LoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    # .............................
+    Properties:
+      # .............................
+      Name: "codedeploy-ec2-enhanced-alb"
+      # .............................
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "${ProjectName}-elb"
+        - 
+          Key: "Project"
+          Value: "demo"
+        - 
+          Key: "Function"
+          Value: "cert-devops"
+        - 
+          Key: "Reference"
+          Value: "cfn"
+      # .............................      
+      Type: "application"
+      Scheme: "internet-facing"
+      IpAddressType: "ipv4"
+      # .............................
+      Subnets:
+        - !Ref PublicEC2SubnetIdA
+        - !Ref PublicEC2SubnetIdB
+      SecurityGroups: 
+        - !Ref PublicEC2ALBSecurityGroupId
+      # .............................
+      #LoadBalancerAttributes:
+      #  -
+      #    Key: "access_logs.s3.enabled"
+      #    Value: "false"
+      #  -
+      #    Key: "access_logs.s3.bucket"
+      #    Value: ""
+      #  -
+      #    Key: "access_logs.s3.prefix"
+      #    Value: ""
+
+  # ------------------------------------------
+  # --- Load Balancer Listener Definition
+  PublicEC2ALBListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    # .............................
+    Properties:
+      # .............................
+      Protocol: "HTTP"
+      Port: 80
+      LoadBalancerArn: !Ref PublicEC2LoadBalancer
+      # .............................
+      DefaultActions:
+        -
+          TargetGroupArn: !Ref PublicEC2TargetGroupArn
+          Type: "forward"
+
+
+# ==========================================
+# Outputs: {}
+Outputs:
+
+  # ------------------------------------------
+  # --- EC2 Load Balancer ARN
+  PublicEC2LoadBalancerARN:
+    Description: Loadbalancer ARN
+    Value: !Ref PublicEC2LoadBalancer
+
+  # ------------------------------------------
+  # --- EC2 Load Balancer DNS
+  PublicEC2LoadBalancerDNS:
+    Description: Loadbalancer DNS
+    Value: !GetAtt PublicEC2LoadBalancer.DNSName
+
+  # ------------------------------------------
+  # --- EC2 Load Balancer Hosted Zone ID
+  PublicEC2LoadBalancerZoneId:
+    Description: Loadbalancer Hosted Zone ID
+    Value: !GetAtt PublicEC2LoadBalancer.CanonicalHostedZoneID
+
+  # ------------------------------------------
+  # --- EC2 Load Balancer Security Groups
+  #PublicEC2LoadBalancerSecurityGroups:
+  #  Description: Loadbalancer Hosted Zone ID
+  #  Value: 
+  #    - !GetAtt PublicEC2LoadBalancer.SecurityGroups

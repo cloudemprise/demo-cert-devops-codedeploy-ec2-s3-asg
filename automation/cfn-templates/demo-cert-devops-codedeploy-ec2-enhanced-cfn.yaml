@@ -128,7 +128,7 @@ Resources:
 
   # ------------------------------------------
   # --- Public/Private Security Groups
-  SecurityGrpDefs:
+  SecurityGroupDefs:
     Type: "AWS::CloudFormation::Stack"
     # .............................
     Properties:
@@ -145,51 +145,116 @@ Resources:
 
   # ------------------------------------------
   # --- EC2 Launch Template
-  PublicEC2LaunchTemplateDef:
+  #PublicEC2LaunchTemplateDef:
+  #  Type: "AWS::CloudFormation::Stack"
+  #  # .............................
+  #  Properties:
+  #    TemplateURL:
+  #      !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-lt.yaml"
+  #    Parameters:
+  #      ProjectName:
+  #        !Ref ProjectName
+  #      PublicEC2LaunchTemplateAmiId:
+  #        !Ref LatestAmi
+  #      PublicEC2SecurityGroupId:
+  #        !GetAtt SecurityGroupDefs.Outputs.PublicEC2SecurityGroupId
+  #      PublicEC2SshAccessKeyName:
+  #        !Ref SshAccessKeyName
+  #      PublicEC2InstanceProfile: 
+  #        !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
+  #    TimeoutInMinutes: 7
+
+  # ------------------------------------------
+  # --- EC2 Target Group
+  PublicEC2TargetGroupDef:
     Type: "AWS::CloudFormation::Stack"
     # .............................
     Properties:
       TemplateURL:
-        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-lt.yaml"
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-tg.yaml"
       Parameters:
         ProjectName:
           !Ref ProjectName
+        VPCID:
+          !GetAtt VPCDef.Outputs.VPCID
+      TimeoutInMinutes: 5
+
+  # ------------------------------------------
+  # --- EC2 AutoScaling Group
+  PublicEC2AutoScaleGroupDef:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-asg.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+        PublicEC2TargetGroupArn:
+          !GetAtt PublicEC2TargetGroupDef.Outputs.PublicEC2TargetGroupArn
+        PublicEC2SubnetIdA:
+          !GetAtt VPCDef.Outputs.PublicEC2SubnetIdA
+        PublicEC2SubnetIdB:
+          !GetAtt VPCDef.Outputs.PublicEC2SubnetIdB
+        PublicEC2SecurityGroupId:
+          !GetAtt SecurityGroupDefs.Outputs.PublicEC2SecurityGroupId
         PublicEC2LaunchTemplateAmiId:
           !Ref LatestAmi
-        PublicEC2SecurityGrpId:
-          !GetAtt SecurityGrpDefs.Outputs.PublicEC2SecurityGrpId
         PublicEC2SshAccessKeyName:
           !Ref SshAccessKeyName
         PublicEC2InstanceProfile: 
           !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
-      TimeoutInMinutes: 7
+      TimeoutInMinutes: 15
+
+  # ------------------------------------------
+  # --- EC2 Network Load Balancer
+  PublicEC2LoadBalancerDef:
+    Type: "AWS::CloudFormation::Stack"
+    DependsOn: "PublicEC2AutoScaleGroupDef"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-alb.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+        PublicEC2ALBSecurityGroupId:
+          !GetAtt SecurityGroupDefs.Outputs.PublicEC2ALBSecurityGroupId
+        PublicEC2SubnetIdA:
+          !GetAtt VPCDef.Outputs.PublicEC2SubnetIdA
+        PublicEC2SubnetIdB:
+          !GetAtt VPCDef.Outputs.PublicEC2SubnetIdB
+        PublicEC2TargetGroupArn:
+          !GetAtt PublicEC2TargetGroupDef.Outputs.PublicEC2TargetGroupArn
+      TimeoutInMinutes: 5
+
 
   # ------------------------------------------
   # --- Public EC2 Instance
-  PublicEC2InstanceDef:
-    Type: "AWS::CloudFormation::Stack"
-    # .............................
-    Properties:
-      TemplateURL:
-        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-pub.yaml"
-      Parameters:
-        ProjectName:
-          !Ref ProjectName
-        PublicEC2InstanceAmiId:
-          !Ref LatestAmi
-        PublicEC2SecurityGrpId:
-          !GetAtt SecurityGrpDefs.Outputs.PublicEC2SecurityGrpId
-        PublicEC2SubnetIdA:
-          !GetAtt VPCDef.Outputs.PublicSubnetIdA
-        PublicEC2SubnetIdB:
-          !GetAtt VPCDef.Outputs.PublicSubnetIdB
-        PublicEC2SshAccessKeyName:
-          !Ref SshAccessKeyName
-        PublicEC2InstanceProfile: 
-          !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
-        PublicEC2LaunchTemplateId:
-          !GetAtt PublicEC2LaunchTemplateDef.Outputs.PublicEC2LaunchTemplateId
-      TimeoutInMinutes: 15
+  #PublicEC2InstanceDef:
+  #  Type: "AWS::CloudFormation::Stack"
+  #  # .............................
+  #  Properties:
+  #    TemplateURL:
+  #      !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-pub.yaml"
+  #    Parameters:
+  #      ProjectName:
+  #        !Ref ProjectName
+  #      PublicEC2InstanceAmiId:
+  #        !Ref LatestAmi
+  #      PublicEC2SecurityGroupId:
+  #        !GetAtt SecurityGroupDefs.Outputs.PublicEC2SecurityGroupId
+  #      PublicEC2SubnetIdA:
+  #        !GetAtt VPCDef.Outputs.PublicEC2SubnetIdA
+  #      PublicEC2SubnetIdB:
+  #        !GetAtt VPCDef.Outputs.PublicEC2SubnetIdB
+  #      PublicEC2SshAccessKeyName:
+  #        !Ref SshAccessKeyName
+  #      PublicEC2InstanceProfile: 
+  #        !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
+  #      PublicEC2LaunchTemplateId:
+  #        !GetAtt PublicEC2LaunchTemplateDef.Outputs.PublicEC2LaunchTemplateId
+  #    TimeoutInMinutes: 15
 
 
   # ------------------------------------------
