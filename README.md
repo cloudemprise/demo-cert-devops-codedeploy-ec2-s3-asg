@@ -17,3 +17,21 @@ https://aws.amazon.com/blogs/compute/query-for-the-latest-amazon-linux-ami-ids-u
 aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest" --region us-east-1
 
 aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest" --query Parameters[].Name
+
+
+
+Note that the Autoscaling Stack includes a Launch Template declaration. This is required since the Launch Template wait condition refers to the logical ID of the Autoscaling Group.
+
+
+APIs
+
+[set-instance-health](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/autoscaling/set-instance-health.html)
+
+[describe-auto-scaling-groups](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/autoscaling/describe-auto-scaling-groups.html)
+
+
+
+
+
+CloudFormation helper scripts reference
+https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html

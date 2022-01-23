@@ -204,7 +204,7 @@ Resources:
           !Ref SshAccessKeyName
         PublicEC2InstanceProfile: 
           !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
-      TimeoutInMinutes: 15
+      TimeoutInMinutes: 12
 
   # ------------------------------------------
   # --- EC2 Network Load Balancer
