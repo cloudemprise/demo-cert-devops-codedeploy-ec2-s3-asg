@@ -21,16 +21,40 @@ Parameters:
     Description: "Name of this particular project"
     ConstraintDescription: "Specify name of this project"
     Type: String
-    Default: "demo-cert-devops-codedeploy-sample-github"
+    Default: "demo-cert-devops-codedeploy-ec2-enhanced"
+    AllowedPattern: (^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$)
+
+  # ------------------------------------------
+  # --- Existing S3 Bucket Name
+  ProjectBucket:
+    Description: "S3 Bucket Location including prefixes."
+    ConstraintDescription: "Must be an existing S3 Bucket."
+    Type: String
+    Default: "demo-cert-devops"
     MinLength: 3
     MaxLength: 63
     AllowedPattern:
       (?!^(\d{1,3}\.){3}\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$(?<!\-))
 
   # ------------------------------------------
+  # --- S3 Bucket Folder Prefix
+  ProjectPrefix:
+    Description: "S3 Bucket Location including prefixes."
+    ConstraintDescription: "Must be an existing S3 Bucket."
+    Type: String
+    Default: "codedeploy"
+    AllowedPattern: (^[a-z0-9]([a-z0-9/-]*(\.[a-z0-9])?)*$(?<!\-))
+
+  # ------------------------------------------
   # --- AMI for EC2 instance
   ServiceRoleCodeDeployArn:
     Description: "CodeDeploy Service Role ARN"
+    Type: String
+
+  # ------------------------------------------
+  # --- Auto Scale Group Name
+  PublicEC2AutoScaleGroupName:
+    Description: "Auto Scale Group Name"
     Type: String
 
 # ==========================================
@@ -83,36 +107,52 @@ Resources:
       DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
       ServiceRoleArn: !Ref "ServiceRoleCodeDeployArn"
       # .............................
-      DeploymentStyle: 
+      DeploymentStyle:
+        DeploymentOption: "WITH_TRAFFIC_CONTROL"
+        #  BLUE_GREEN | IN_PLACE
         DeploymentType: "IN_PLACE"
-        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+        # !! Note: for blue/green deployments, CloudFormation supports Lambda
+        # deployments ONLY - NOT EC2!! EC2 blue/green deployments conducted
+        # manually via Console only.
+        # For ECS blue/green deployments use AWS::CodeDeploy::BlueGreen hook
+      # .............................
+      AutoScalingGroups:
+        - !Ref PublicEC2AutoScaleGroupName
+      # .............................
+      # Tags not needed when delineating via autoscaling groups 
+      #Ec2TagFilters:
+      #  - 
+      #    Key: "Project"
+      #    Value: "demo"
+      #    Type: "KEY_AND_VALUE"
+      #  - 
+      #    Key: "Function"
+      #    Value: "cert-devops"
+      #    Type: "KEY_AND_VALUE"
+      #  - 
+      #    Key: "Reference"
+      #    Value: "cfn"
+      #    Type: "KEY_AND_VALUE"
+      #  - 
+      #    Key: "Name"
+      #    Value: !Sub "${ProjectName}-public"
+      #    Type: "KEY_AND_VALUE"
+      # .............................
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          -
+            Name: "codedeploy-ec2-enhanced-tg"
       # .............................
       Deployment:
         Description: !Sub "${ProjectName} deployment"
         # .............................
         Revision:
-          RevisionType: GitHub
-          GitHubLocation:
-            Repository: !Sub "cloudemprise/${ProjectName}"
-            CommitId: "ed0d33204941d0a2e002048821ad94bc1183d840"
-      # .............................
-      Ec2TagFilters:
-        - 
-          Key: "Project"
-          Value: "demo"
-          Type: "KEY_AND_VALUE"
-        - 
-          Key: "Function"
-          Value: "cert-devops"
-          Type: "KEY_AND_VALUE"
-        - 
-          Key: "Reference"
-          Value: "cfn"
-          Type: "KEY_AND_VALUE"
-        - 
-          Key: "Name"
-          Value: !Sub "${ProjectName}-public"
-          Type: "KEY_AND_VALUE"
+          RevisionType: S3
+          S3Location:
+            Bucket: !Sub "${ProjectBucket}"
+            BundleType: "zip"
+            Key: !Sub "${ProjectPrefix}/${ProjectName}/app/SampleApp2_Linux.zip"
+
 
 # ==========================================
 Outputs: {}

@@ -157,79 +157,29 @@ Resources:
         UserData:
           Fn::Base64:
             !Sub |
-              #!/bin/bash -e
-              # debug : -e break on all errors
-              # debug options include -v -x
-              # ---
-              # Update Packages, inc. aws-cfn-bootstrap:
-              yum install -y aws-cfn-bootstrap
-              # yum update -y
+              #!/bin/bash -xe
+              # --- Clean AMI (previous agent caching info)
+              if [ -n "$( ls -A /opt/codedeploy-agent/bin/codedeploy-agent )" ]; then "/opt/codedeploy-agent/bin/codedeploy-agent" stop; yum erase codedeploy-agent -y; fi
+              # --- Update Packages (inc. aws-cfn-bootstrap)
+              # yum install -y aws-cfn-bootstrap
+              yum update -y
+              # --- Install yum packages
+              yum install -y ruby wget httpd
+              # --- Config alb health checks
+              echo "<h1>Hello from ${AWS::StackId}<h1>" >> /var/www/html/health.html
+              chmod 0644 /var/www/html/health.html
+              systemctl start httpd
+              systemctl enable httpd
+              # --- Install CodeDeploy Agent
+              cd /tmp
+              wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+              chmod +x ./install
+              ./install auto
               # ---
               # Retrive IMDSv2 token - valid 15mins
               # export TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900")
-              # Start cfn-init
-              /opt/aws/bin/cfn-init -v --configsets Step1 --stack ${AWS::StackId} --resource PublicEC2LaunchTemplate --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
               # All done so signal success
               /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource PublicEC2AutoScaleGroup --region ${AWS::Region}
-    # .............................
-    Metadata:
-      Comment: "Configuring an EC2 Instance."
-      # .............................
-      AWS::CloudFormation::Init:
-        configSets:
-          Step1:
-            - configRepo
-            - configYum
-            - configWebServer
-        # / / / / / / / / / / / / / / /
-        # configure epel repository
-        configRepo:
-          commands:
-            1a_epel:
-              command: "amazon-linux-extras install epel"
-            1b_epel:
-              command: 'sed -i "/\[epel\]/a priority=20" /etc/yum.repos.d/epel.repo'
-            2a_repo:
-              command: "yum-config-manager --disable amzn2extra-docker"
-            3a_repo:
-              command: "yum update -y"
-        # / / / / / / / / / / / / / / /
-        # configure automatic security updates
-        configYum:
-          packages:
-            yum:
-              yum-cron: []
-          commands:
-            1a_yumCron:
-              command: "sed -i 's/.*update_cmd.*/update_cmd = security/' /etc/yum/yum-cron.conf"
-            1b_yumCron:
-              command: "sed -i 's/.*apply_updates.*/apply_updates = yes/' /etc/yum/yum-cron.conf"
-          services:
-            sysvinit:
-              yum-cron:
-                ensureRunning: "true"
-                enabled: "true"
-                commands:
-                  - "1b_yumCron"
-        # / / / / / / / / / / / / / / /
-        # For use: LoadBalancer HealthChecks.
-        configWebServer:
-          packages:
-            yum:
-              httpd: []
-          files:
-            "/var/www/html/index.html":
-              content: !Sub |
-                <h1>Hello from ${AWS::StackId}<h1>
-              mode: '000644'
-              owner: "root"
-              group: "root"
-          services:
-            sysvinit:
-              httpd:
-                enabled: "true"
-                ensureRunning: "true"
-        # / / / / / / / / / / / / / / /
 
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -327,5 +277,11 @@ Resources:
 
 
 # ==========================================
-Outputs: {}
-# Outputs:
+# Outputs: {}
+Outputs:
+
+  # ------------------------------------------
+  # --- Auto Scale Group Name
+  PublicEC2AutoScaleGroupName:
+    Description: "Auto Scale Group Name"
+    Value: !Ref PublicEC2AutoScaleGroup

@@ -35,3 +35,16 @@ APIs
 
 CloudFormation helper scripts reference
 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
+
+
+
+
+# !! Note: for blue/green deployments, CloudFormation supports Lambda
+# deployments ONLY - NOT EC2!! EC2 blue/green deployments conducted
+# manually via Console only.
+# For ECS blue/green deployments use AWS::CodeDeploy::BlueGreen hook
+
+
+Note on ec2 blue/green deployment: did not use a lauchtemplate here since replacement instances 
+would not have the CodeDeploy Agent installed on them as the lauchtemplate would only be used 
+during infrastructure provisioning and not during blue/green deployment.

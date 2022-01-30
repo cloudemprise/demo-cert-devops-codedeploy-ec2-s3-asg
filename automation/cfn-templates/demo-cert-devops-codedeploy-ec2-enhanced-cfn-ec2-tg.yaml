@@ -75,7 +75,7 @@ Resources:
       HealthCheckEnabled: true
       HealthCheckProtocol: "HTTP"
       HealthCheckPort: "80"
-      HealthCheckPath: "/"
+      HealthCheckPath: "/health.html"
       Matcher: 
         HttpCode: "200"
       # .............................

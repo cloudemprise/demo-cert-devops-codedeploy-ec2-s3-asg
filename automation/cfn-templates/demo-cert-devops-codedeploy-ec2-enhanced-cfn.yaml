@@ -230,51 +230,25 @@ Resources:
 
 
   # ------------------------------------------
-  # --- Public EC2 Instance
-  #PublicEC2InstanceDef:
-  #  Type: "AWS::CloudFormation::Stack"
-  #  # .............................
-  #  Properties:
-  #    TemplateURL:
-  #      !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-ec2-pub.yaml"
-  #    Parameters:
-  #      ProjectName:
-  #        !Ref ProjectName
-  #      PublicEC2InstanceAmiId:
-  #        !Ref LatestAmi
-  #      PublicEC2SecurityGroupId:
-  #        !GetAtt SecurityGroupDefs.Outputs.PublicEC2SecurityGroupId
-  #      PublicEC2SubnetIdA:
-  #        !GetAtt VPCDef.Outputs.PublicEC2SubnetIdA
-  #      PublicEC2SubnetIdB:
-  #        !GetAtt VPCDef.Outputs.PublicEC2SubnetIdB
-  #      PublicEC2SshAccessKeyName:
-  #        !Ref SshAccessKeyName
-  #      PublicEC2InstanceProfile: 
-  #        !GetAtt IAMDef.Outputs.PublicEC2InstanceProfile
-  #      PublicEC2LaunchTemplateId:
-  #        !GetAtt PublicEC2LaunchTemplateDef.Outputs.PublicEC2LaunchTemplateId
-  #    TimeoutInMinutes: 15
-
-
-  # ------------------------------------------
   # --- CodeDeploy Deployment
-  #CodeDeployDeploymentDef:
-  #  Type: "AWS::CloudFormation::Stack"
-  #  DependsOn: "PublicEC2InstanceDef"
-  #  # .............................
-  #  Properties:
-  #    TemplateURL:
-  #      !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-dev-deploy.yaml"
-  #    Parameters:
-  #      ProjectName:
-  #        !Ref ProjectName
-  #      ServiceRoleCodeDeployArn:
-  #        !GetAtt IAMDef.Outputs.ServiceRoleCodeDeployArn
-  #    TimeoutInMinutes: 7
-
-
-
+  CodeDeployDeploymentDef:
+    Type: "AWS::CloudFormation::Stack"
+    # .............................
+    Properties:
+      TemplateURL:
+        !Sub "https://${ProjectBucket}.s3.${AWS::Region}.amazonaws.com/${ProjectPrefix}/${ProjectName}/cfn-templates/${ProjectName}-cfn-deploy.yaml"
+      Parameters:
+        ProjectName:
+          !Ref ProjectName
+        ProjectBucket:
+          !Ref ProjectBucket
+        ProjectPrefix:
+          !Ref ProjectPrefix
+        ServiceRoleCodeDeployArn:
+          !GetAtt IAMDef.Outputs.ServiceRoleCodeDeployArn
+        PublicEC2AutoScaleGroupName:
+          !GetAtt PublicEC2AutoScaleGroupDef.Outputs.PublicEC2AutoScaleGroupName
+      TimeoutInMinutes: 7
 
 
 # ==========================================
