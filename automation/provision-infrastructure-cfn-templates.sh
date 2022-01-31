@@ -1,7 +1,8 @@
 #!/bin/bash -e
 # debug options include -v -x
 # provision-infrastructure-cfn-templates.sh 
-# A script to provision the infrastructure for this CodeDeploy sample demonstration project.
+# A script to provision infrastructure for a CodeDeploy sample 
+# demonstration project.
 
 # Debug pause
 #read -p "Press enter to continue"
@@ -73,7 +74,7 @@ done
 
 #-----------------------------
 # Request Project Name
-PROJECT_NAME="demo-cert-devops-codedeploy-ec2-enhanced"
+PROJECT_NAME="demo-cert-devops-codedeploy-ec2-s3-asg"
 while true
 do
   # -e : stdin from terminal
@@ -201,6 +202,25 @@ echo "The latest AMI ................................: $AMI_LATEST"
 # START   UPLOAD ARTIFACTS
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+
+#-----------------------------
+# Compress and Upload Sample Application to S3
+PROJECT_LOCALE="${PROJECT_BUCKET}/${PROJECT_PREFIX}/${PROJECT_NAME}"
+S3_OBJECT="s3://$PROJECT_LOCALE/app/sample-application.tar.gz"
+if [[ $(tar -zchf - -C ../app/ . | aws s3 cp - ${S3_OBJECT} --profile "$AWS_PROFILE" --region "$AWS_REGION") -ne 0 ]]
+# tar -z : Filter the archive through gzip
+# tar -c : Create a new archive
+# tar -f : Use  archive file
+# tar -h : Follow symlinks  
+then
+  echo "Sample Application Failed to Uploaded to S3 ...: ${S3_OBJECT}"
+  exit 1
+else
+  echo "Sample Application Uploaded to S3 Location ....: ${S3_OBJECT}"
+fi
+#.............................
+
+
 #----------------------------------------------
 # Upload Cloudformation Template artifacts to S3
 PROJECT_LOCALE="${PROJECT_BUCKET}/${PROJECT_PREFIX}/${PROJECT_NAME}"
@@ -221,6 +241,7 @@ find -L ./cfn-templates -type f -name "*.yaml" ! -path "*/scratch/*" -print0 |
     fi
   done
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # END   UPLOAD ARTIFACTS 

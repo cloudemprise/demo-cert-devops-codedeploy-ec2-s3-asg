@@ -22,11 +22,8 @@ Parameters:
     Description: "Name of this particular project"
     ConstraintDescription: "Specify name of this project"
     Type: String
-    Default: "demo-cert-devops-codedeploy-sample-github"
-    MinLength: 3
-    MaxLength: 63
-    AllowedPattern:
-      (?!^(\d{1,3}\.){3}\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$(?<!\-))
+    Default: "demo-cert-devops-codedeploy-ec2-s3-asg"
+    AllowedPattern: (^[a-z0-9]([a-z0-9-]*(\.[a-z0-9])?)*$)
 
 
 # ==========================================
