@@ -204,20 +204,36 @@ echo "The latest AMI ................................: $AMI_LATEST"
 
 
 #-----------------------------
-# Compress and Upload Sample Application to S3
+# Compress (tar.gz method) and Upload Sample Application to S3 
+#PROJECT_LOCALE="${PROJECT_BUCKET}/${PROJECT_PREFIX}/${PROJECT_NAME}"
+#S3_OBJECT="s3://$PROJECT_LOCALE/app/sample-application.tar.gz"
+#if [[ $(tar -zchf - -C ../app/ . | aws s3 cp - ${S3_OBJECT} --profile "$AWS_PROFILE" --region "$AWS_REGION") -ne 0 ]]
+## tar -z : Filter the archive through gzip
+## tar -c : Create a new archive
+## tar -f : Use  archive file
+## tar -h : Follow symlinks  
+#then
+#  echo "Sample Application Failed to Uploaded to S3 ...: ${S3_OBJECT}"
+#  exit 1
+#else
+#  echo "Sample Application Uploaded to S3 Location ....: ${S3_OBJECT}"
+#fi
+##.............................
+
+
+#-----------------------------
+# Compress (zip method) and Upload Sample Application to S3 
 PROJECT_LOCALE="${PROJECT_BUCKET}/${PROJECT_PREFIX}/${PROJECT_NAME}"
-S3_OBJECT="s3://$PROJECT_LOCALE/app/sample-application.tar.gz"
-if [[ $(tar -zchf - -C ../app/ . | aws s3 cp - ${S3_OBJECT} --profile "$AWS_PROFILE" --region "$AWS_REGION") -ne 0 ]]
-# tar -z : Filter the archive through gzip
-# tar -c : Create a new archive
-# tar -f : Use  archive file
-# tar -h : Follow symlinks  
+S3_OBJECT="s3://$PROJECT_LOCALE/app/sample-application.zip"
+pushd "../app" > /dev/null
+if [[ $(zip -qr - . | aws s3 cp - ${S3_OBJECT} --profile "$AWS_PROFILE" --region "$AWS_REGION") -ne 0 ]]
 then
   echo "Sample Application Failed to Uploaded to S3 ...: ${S3_OBJECT}"
   exit 1
 else
   echo "Sample Application Uploaded to S3 Location ....: ${S3_OBJECT}"
 fi
+popd > /dev/null
 #.............................
 
 
@@ -307,6 +323,7 @@ else
   exit 1
 fi
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 #----------------------------------------------
 # Calculate Stack Creation Execution Time

@@ -150,8 +150,8 @@ Resources:
           RevisionType: S3
           S3Location:
             Bucket: !Sub "${ProjectBucket}"
-            BundleType: "tgz"
-            Key: !Sub "${ProjectPrefix}/${ProjectName}/app/sample-application.tar.gz"
+            BundleType: "zip"
+            Key: !Sub "${ProjectPrefix}/${ProjectName}/app/sample-application.zip"
 
 
 # ==========================================
