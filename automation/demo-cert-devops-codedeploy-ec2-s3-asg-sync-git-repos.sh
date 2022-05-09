@@ -1,8 +1,8 @@
 #!/bin/bash -e
 # debug options include -v -x
-# sync-git-remotes-multiple-repos
-# A script to reconfigure the git remotes to push to multiple git repositories, i.e.
-# to GitHub and AWS CodeCommit.
+# cfn-ovpn-cli-sync-git-repos.sh
+# sync to multiple git remotes, namely: github & codecommit
+# A script to reconfigure the git remotes to push to multiple git repositories.
 
 #-----------------------------
 # Request Named Profile
@@ -100,8 +100,12 @@ done
 cd ..
 REPO_GIT=$(git config --get remote.origin.url)
 
+echo "REPO_GIT: $REPO_GIT"
+
 
 REPO_NAME=$(echo "$REPO_GIT" | grep -o -P '(?<=git@github.com:cloudemprise/).*(?=.git)')
+
+#echo "REPO_NAME: $REPO_NAME"
 
 git remote rm origin
 
@@ -109,9 +113,13 @@ git remote add origin "$REPO_GIT"
 
 git remote set-url --add --push origin "$REPO_GIT"
 
-REPO_AWS=$(aws codecommit create-repository --repository-name "$REPO_NAME" --output text \
-  --repository-description "$REPO_DESCRIPTION" --query "repositoryMetadata.cloneUrlSsh"  \
-  --tags Function="cert-devops",Project="demo",Reference="script")
+REPO_AWS=$(aws codecommit create-repository --repository-name "$REPO_NAME" \
+  --output text --profile "$AWS_PROFILE" --region "$AWS_REGION" \
+  --repository-description "$REPO_DESCRIPTION" \
+  --query "repositoryMetadata.cloneUrlSsh"  \
+  --tags Function="maintenance",Project="setup",Reference="script")
+
+#echo "REPO_AWS: $REPO_AWS"
 
 git remote set-url --add --push origin "$REPO_AWS"
 

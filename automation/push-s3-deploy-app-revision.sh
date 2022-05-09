@@ -1,7 +1,8 @@
 #!/bin/bash -e
 # debug options include -v -x
-# ddeploy-application-revision.sh
-# deploy an application revision to target EC2 instances 
+# push-s3-deploy-app-revision.sh
+
+# Deploy an application revision to target EC2 instances 
 # from an S3 bucket.
 
 # Debug pause
@@ -184,7 +185,8 @@ if [[ $? -eq 0 ]]; then
   # ---
   # rebuild command with some options included
   DEPLOY_COMMAND="${DEPLOY_COMMAND} --profile ${AWS_PROFILE} --region ${AWS_REGION} --output text"
-  # execute command stored in variable : aws deploy create-deployment
+  # ---
+  # Execute command stored in variable : aws deploy create-deployment
   DEPLOYMENT_ID=$(eval "$DEPLOY_COMMAND")
   if [[ $? -eq 0 ]]; then
     echo "Deployment Creation Successful with ID ........: $DEPLOYMENT_ID"
